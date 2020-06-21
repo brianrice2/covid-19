@@ -1,0 +1,192 @@
+---
+title: "COVID-19: The Daily Report"
+date: "6/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(scales)
+
+# The NY Times shares information on the total number of cases in the US:
+url_total = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us.csv"
+covid_data <- readr::read_csv(url_total)
+
+# as well as split by state:
+url_by_state = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv"
+covid_data_by_state <- readr::read_csv(url_by_state)
+```
+
+This Rmarkdown file is intended to give a visual snapshot of the progression of coronavirus: by state, by region, or in total. Data is graciously provided by the NY Times [(accessible via Github)](https://github.com/nytimes/covid-19-data). Source code for this file can be found on [Github](https://github.com/brianrice2/covid).
+
+The most recent date of available information is `r format(max(covid_data$date), "%B %d, %Y")`.
+
+### National overview - new cases and deaths
+
+```{r new-daily-cases}
+# new daily cases
+covid_data$new_cases <- c(0, diff(covid_data$cases))
+ggplot(data = covid_data) +
+  geom_line(mapping = aes(x = date, y = new_cases),
+            color = 'steelblue') +
+  labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
+  scale_y_continuous(labels = comma)
+```
+
+
+```{r new-daily-deaths}
+# new daily deaths
+covid_data$new_deaths <- c(0, diff(covid_data$deaths))
+ggplot(data = covid_data) +
+  geom_line(mapping = aes(x = date, y = new_deaths),
+            color = 'red4') +
+  labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
+  scale_y_continuous(labels = comma)
+```
+
+### State-level snapshots
+
+```{r state-setup}
+# add new daily cases and deaths to state data
+covid_data_by_state <- covid_data_by_state %>% 
+  group_by(state) %>% 
+  arrange(date) %>% 
+  mutate(new_cases = cases - lag(cases),
+         new_deaths = deaths - lag(deaths))
+
+covid_data_by_state <- covid_data_by_state %>% 
+  replace_na(list(new_cases = 0, new_deaths = 0))
+```
+
+```{r all-states-new-cases, fig.width=10, fig.height=24}
+# view new cases for all states (still split by state)
+covid_data_by_state %>% 
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = new_cases, color = state)) +
+    facet_wrap(~ state, nrow = 10, shrink = FALSE) +
+    labs(x = 'Date', y = 'New daily cases') +
+    scale_y_continuous(labels = comma) +
+    theme(legend.position = "none")
+```
+
+### Regional progression
+
+The US Census Bureau provides regional classifications to us - [link](https://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf) - which I will use. It's 1) easy, and 2) seems good enough to identify general trends. Notably, the "other" category includes Hawaii, Alaska, Puerto Rico, and the Northern Mariana Islands.
+
+```{r region-classification}
+west <- c('Washington', 'Oregon', 'California', 'Nevada', 'Idaho',
+          'Utah', 'Arizona', 'Montana', 'Wyoming', 'Colorado', 'New Mexico')
+midwest <- c('North Dakota', 'South Dakota', 'Nebraska', 'Kansas', 'Minnesota',
+             'Iowa', 'Missouri', 'Wisconsin', 'Illinois', 'Indiana',
+             'Michigan', 'Ohio')
+south <- c('Oklahoma', 'Texas', 'Arkansas', 'Louisiana', 'Mississippi',
+           'Tennessee', 'Kentucky', 'Alabama', 'Georgia', 'West Virginia',
+           'Virginia', 'North Carolina', 'South Carolina', 'Florida',
+           'Maryland', 'Delaware', 'District of Columbia')
+northeast <- c('Pennsylvania', 'New Jersey', 'New York', 'Vermont', 'New Hampshire',
+               'Massachusetts', 'Connecticut', 'Rhode Island', 'Maine')
+```
+
+```{r assign-groups}
+covid_data_by_state$region <- with(covid_data_by_state,
+                                   ifelse(state %in% west, "west",
+                                          ifelse(state %in% midwest, "midwest",
+                                                 ifelse(state %in% south, "south",
+                                                        ifelse(state %in% northeast, "northeast", "other")))))
+```
+
+```{r plot-new-regional-cases, message=FALSE}
+covid_data_by_state %>% 
+  group_by(region, date) %>%
+  summarize(regional_new_cases = sum(new_cases)) %>% 
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = regional_new_cases), color = 'steelblue') +
+    facet_wrap(~ region, nrow = 2) +
+    labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
+    scale_y_continuous(labels = comma)
+```
+
+```{r plot-new-regional-deaths, message=FALSE}
+covid_data_by_state %>% 
+  group_by(region, date) %>%
+  summarize(regional_new_deaths = sum(new_deaths)) %>% 
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = regional_new_deaths), color = 'red4') +
+    facet_wrap(~ region, nrow = 2) +
+    labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
+    scale_y_continuous(labels = comma)
+```
+
+### Just the past two weeks
+
+```{r plot-new-regional-cases-past-two-weeks, message=FALSE}
+covid_data_by_state %>%
+  filter(date >= max(date) - 14) %>%
+  group_by(region, date) %>%
+  summarize(regional_new_cases = sum(new_cases)) %>%
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = regional_new_cases), color = 'steelblue') +
+    facet_wrap(~ region, nrow = 2) +
+    labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
+    scale_y_continuous(labels = comma)
+```
+
+```{r plot-new-regional-deaths-past-two-weeks, message=FALSE}
+covid_data_by_state %>%
+  filter(date >= max(date) - 14) %>%
+  group_by(region, date) %>%
+  summarize(regional_new_deaths = sum(new_deaths)) %>%
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = regional_new_deaths), color = 'red4') +
+    facet_wrap(~ region, nrow = 2) +
+    labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
+    scale_y_continuous(labels = comma)
+```
+
+### Cases per capita
+
+The US Census Bureau provides [estimates of each state's population as of 2019](https://www2.census.gov/programs-surveys/popest/datasets/). Let's pull that info in so we can look at new cases per capita
+
+```{r population-data-setup, message=FALSE}
+population_data <- read_csv('./census-population-estimates.csv')
+population_data <- population_data %>% 
+  select(NAME, POPESTIMATE2019)
+
+population_data <- population_data %>%
+  rename(state = NAME,
+         population = POPESTIMATE2019)
+
+# add population data to our original covid data
+covid_data_by_state <- left_join(covid_data_by_state, population_data, by = 'state')
+
+# calculate cases and deaths per capita
+covid_data_by_state <- mutate(covid_data_by_state,
+                              new_cases_per_capita = new_cases / population,
+                              new_deaths_per_capita = new_deaths / population)
+```
+
+```{r plot-new-regional-cases-per-capita-past-two-weeks, message=FALSE}
+covid_data_by_state %>%
+  filter(date >= max(date) - 14) %>%
+  group_by(region, date) %>%
+  summarize(regional_new_cases_per_capita = sum(new_cases_per_capita)) %>%
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = regional_new_cases_per_capita), color = 'steelblue') +
+    facet_wrap(~ region, nrow = 2) +
+    labs(x = 'Date', y = 'New daily cases', title = 'Daily cases as a percentage of population') +
+    scale_y_continuous(labels = percent)
+```
+
+```{r plot-new-regional-deaths-per-capita-past-two-weeks, message=FALSE}
+covid_data_by_state %>%
+  filter(date >= max(date) - 14) %>%
+  group_by(region, date) %>%
+  summarize(regional_new_deaths_per_capita = sum(new_deaths_per_capita)) %>%
+  ggplot() +
+    geom_line(mapping = aes(x = date, y = regional_new_deaths_per_capita), color = 'red4') +
+    facet_wrap(~ region, nrow = 2) +
+    labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths as a percentage of population') +
+    scale_y_continuous(labels = percent)
+```
