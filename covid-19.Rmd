@@ -19,7 +19,7 @@ url_by_state = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/u
 covid_data_by_state <- readr::read_csv(url_by_state)
 ```
 
-This Rmarkdown file is intended to give a visual snapshot of the progression of coronavirus: by state, by region, or in total. Data is graciously provided by the NY Times [(accessible via Github)](https://github.com/nytimes/covid-19-data). Source code for this file can be found on [Github](https://github.com/brianrice2/covid).
+This Rmarkdown file is intended to give a visual snapshot of the progression of coronavirus: by state, by region, or in total. Data is graciously provided by the NY Times [(accessible via Github)](https://github.com/nytimes/covid-19-data). Source code for this file can be found on [Github](https://github.com/brianrice2/covid-19).
 
 The most recent date of available information is `r format(max(covid_data$date), "%B %d, %Y")`.
 
