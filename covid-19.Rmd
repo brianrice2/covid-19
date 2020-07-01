@@ -2,13 +2,16 @@
 title: "COVID-19: The Daily Report"
 date: "6/20/2020"
 output: html_document
+params:
+  printcode: false
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = params$printcode)
 
 library(tidyverse)
 library(scales)
+library(ggthemes)
 
 # The NY Times shares information on the total number of cases in the US:
 url_total = "https://raw.githubusercontent.com/nytimes/covid-19-data/master/us.csv"
@@ -23,6 +26,9 @@ This Rmarkdown file is intended to give a visual snapshot of the progression of 
 
 The most recent date of available information is `r format(max(covid_data$date), "%B %d, %Y")`.
 
+TO DO: This report can be easily refreshed by simply clicking the "Knit" button in RStudio - but a self-updating dashboard would be even better.
+
+
 ### National overview - new cases and deaths
 
 ```{r new-daily-cases}
@@ -31,10 +37,14 @@ covid_data$new_cases <- c(0, diff(covid_data$cases))
 ggplot(data = covid_data) +
   geom_line(mapping = aes(x = date, y = new_cases),
             color = 'steelblue') +
-  labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
-  scale_y_continuous(labels = comma)
+  labs(title = 'New daily cases') +
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
 ```
-
 
 ```{r new-daily-deaths}
 # new daily deaths
@@ -43,8 +53,12 @@ ggplot(data = covid_data) +
   geom_line(mapping = aes(x = date, y = new_deaths),
             color = 'red4') +
   labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
-  scale_y_continuous(labels = comma)
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank())
 ```
+
 
 ### State-level snapshots
 
@@ -64,12 +78,18 @@ covid_data_by_state <- covid_data_by_state %>%
 # view new cases for all states (still split by state)
 covid_data_by_state %>% 
   ggplot() +
-    geom_line(mapping = aes(x = date, y = new_cases, color = state)) +
-    facet_wrap(~ state, nrow = 10, shrink = FALSE) +
-    labs(x = 'Date', y = 'New daily cases') +
-    scale_y_continuous(labels = comma) +
-    theme(legend.position = "none")
+  geom_line(mapping = aes(x = date, y = new_cases, color = state)) +
+  facet_wrap(~ state, nrow = 10, shrink = FALSE) +
+  labs(title = 'New daily cases by state') +
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
 ```
+
 
 ### Regional progression
 
@@ -91,10 +111,10 @@ northeast <- c('Pennsylvania', 'New Jersey', 'New York', 'Vermont', 'New Hampshi
 
 ```{r assign-groups}
 covid_data_by_state$region <- with(covid_data_by_state,
-                                   ifelse(state %in% west, "west",
-                                          ifelse(state %in% midwest, "midwest",
-                                                 ifelse(state %in% south, "south",
-                                                        ifelse(state %in% northeast, "northeast", "other")))))
+                                   ifelse(state %in% west, "West",
+                                          ifelse(state %in% midwest, "Midwest",
+                                                 ifelse(state %in% south, "South",
+                                                        ifelse(state %in% northeast, "Northeast", "Other")))))
 ```
 
 ```{r plot-new-regional-cases, message=FALSE}
@@ -102,10 +122,13 @@ covid_data_by_state %>%
   group_by(region, date) %>%
   summarize(regional_new_cases = sum(new_cases)) %>% 
   ggplot() +
-    geom_line(mapping = aes(x = date, y = regional_new_cases), color = 'steelblue') +
-    facet_wrap(~ region, nrow = 2) +
-    labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
-    scale_y_continuous(labels = comma)
+  geom_line(mapping = aes(x = date, y = regional_new_cases), color = 'steelblue') +
+  facet_wrap(~ region, nrow = 2) +
+  labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank())
 ```
 
 ```{r plot-new-regional-deaths, message=FALSE}
@@ -113,11 +136,15 @@ covid_data_by_state %>%
   group_by(region, date) %>%
   summarize(regional_new_deaths = sum(new_deaths)) %>% 
   ggplot() +
-    geom_line(mapping = aes(x = date, y = regional_new_deaths), color = 'red4') +
-    facet_wrap(~ region, nrow = 2) +
-    labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
-    scale_y_continuous(labels = comma)
+  geom_line(mapping = aes(x = date, y = regional_new_deaths), color = 'red4') +
+  facet_wrap(~ region, nrow = 2) +
+  labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank())
 ```
+
 
 ### Just the past two weeks
 
@@ -127,10 +154,15 @@ covid_data_by_state %>%
   group_by(region, date) %>%
   summarize(regional_new_cases = sum(new_cases)) %>%
   ggplot() +
-    geom_line(mapping = aes(x = date, y = regional_new_cases), color = 'steelblue') +
-    facet_wrap(~ region, nrow = 2) +
-    labs(x = 'Date', y = 'New daily cases', title = 'Daily cases') +
-    scale_y_continuous(labels = comma)
+  geom_line(mapping = aes(x = date, y = regional_new_cases), color = 'steelblue') +
+  facet_wrap(~ region, nrow = 2) +
+  labs(title = 'New daily cases over the past two weeks') +
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
 ```
 
 ```{r plot-new-regional-deaths-past-two-weeks, message=FALSE}
@@ -139,15 +171,21 @@ covid_data_by_state %>%
   group_by(region, date) %>%
   summarize(regional_new_deaths = sum(new_deaths)) %>%
   ggplot() +
-    geom_line(mapping = aes(x = date, y = regional_new_deaths), color = 'red4') +
-    facet_wrap(~ region, nrow = 2) +
-    labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths') +
-    scale_y_continuous(labels = comma)
+  geom_line(mapping = aes(x = date, y = regional_new_deaths), color = 'red4') +
+  facet_wrap(~ region, nrow = 2) +
+  labs(title = 'New daily deaths over the past two weeks') +
+  scale_y_continuous(labels = comma) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank())
 ```
+
 
 ### Cases per capita
 
-The US Census Bureau provides [estimates of each state's population as of 2019](https://www2.census.gov/programs-surveys/popest/datasets/). Let's pull that info in so we can look at new cases per capita
+The US Census Bureau provides [estimates of each state's population as of 2019](https://www2.census.gov/programs-surveys/popest/datasets/). Let's pull that info in so we can look at new cases per capita:
 
 ```{r population-data-setup, message=FALSE}
 population_data <- read_csv('./census-population-estimates.csv')
@@ -162,31 +200,24 @@ population_data <- population_data %>%
 covid_data_by_state <- left_join(covid_data_by_state, population_data, by = 'state')
 
 # calculate cases and deaths per capita
-covid_data_by_state <- mutate(covid_data_by_state,
-                              new_cases_per_capita = new_cases / population,
-                              new_deaths_per_capita = new_deaths / population)
+covid_data_by_state <- covid_data_by_state %>% 
+  mutate(new_cases_per_capita = new_cases / population,
+         new_deaths_per_capita = new_deaths / population)
 ```
 
 ```{r plot-new-regional-cases-per-capita-past-two-weeks, message=FALSE}
 covid_data_by_state %>%
   filter(date >= max(date) - 14) %>%
   group_by(region, date) %>%
-  summarize(regional_new_cases_per_capita = sum(new_cases_per_capita)) %>%
+  summarize(regional_new_cases_per_capita = sum(new_cases_per_capita),
+            regional_new_deaths_per_capita = sum(new_deaths_per_capita)) %>%
   ggplot() +
-    geom_line(mapping = aes(x = date, y = regional_new_cases_per_capita), color = 'steelblue') +
-    facet_wrap(~ region, nrow = 2) +
-    labs(x = 'Date', y = 'New daily cases', title = 'Daily cases as a percentage of population') +
-    scale_y_continuous(labels = percent)
-```
-
-```{r plot-new-regional-deaths-per-capita-past-two-weeks, message=FALSE}
-covid_data_by_state %>%
-  filter(date >= max(date) - 14) %>%
-  group_by(region, date) %>%
-  summarize(regional_new_deaths_per_capita = sum(new_deaths_per_capita)) %>%
-  ggplot() +
-    geom_line(mapping = aes(x = date, y = regional_new_deaths_per_capita), color = 'red4') +
-    facet_wrap(~ region, nrow = 2) +
-    labs(x = 'Date', y = 'New daily deaths', title = 'Daily deaths as a percentage of population') +
-    scale_y_continuous(labels = percent)
+  geom_line(mapping = aes(x = date, y = regional_new_cases_per_capita), color = 'steelblue') +
+  geom_line(mapping = aes(x = date, y = regional_new_deaths_per_capita), color = 'red4') +
+  facet_wrap(~ region, nrow = 2) +
+  labs(x = 'Date', y = 'New daily cases', title = 'Daily cases and deaths per capita') +
+  scale_y_continuous(labels = percent) +
+  theme_fivethirtyeight() +
+  theme(axis.title = element_text(),
+        panel.grid.major.x = element_blank())
 ```
